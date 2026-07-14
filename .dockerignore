@@ -1,0 +1,15 @@
+# Local secrets and environment
+.env
+.env.*
+
+# Version control and IDE metadata
+.git
+.gitignore
+.gitmodules
+.idea/
+*.iml
+
+# Documentation and container metadata (not needed to build)
+*.md
+Dockerfile
+.dockerignore
