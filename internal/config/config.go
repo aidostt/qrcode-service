@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"log"
@@ -82,12 +83,12 @@ func parseConfigFile(folder string) error {
 }
 
 func loadEnvVariables(envPath string) {
-	err := godotenv.Load(envPath)
-
-	if err != nil {
-		log.Fatalf("Error loading .env file")
+	// .env is a convenience for local development only; in real environments
+	// configuration is supplied through the process environment (12-factor).
+	// A missing file is expected and therefore not an error.
+	if err := godotenv.Load(envPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("warning: failed to load env file %q: %v", envPath, err)
 	}
-
 }
 
 func populateDefaults() {
