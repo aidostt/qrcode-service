@@ -12,7 +12,6 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
-	"qrcode-generation-service/internal/domain"
 	"qrcode-generation-service/pkg/dialog"
 )
 
@@ -40,46 +39,53 @@ func (s *Service) GenerateQR(content string) ([]byte, error) {
 	return qrCode, nil
 }
 
-func (s *Service) ScanQR(ctx context.Context, userID string, reservationID string) (UserInfo, RestaurantInfo, ReservationInfo, error) {
-	userConn, err := s.dialog.NewConnection(s.dialog.Addresses.Users)
-	defer userConn.Close()
-	if err != nil {
-		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
-	}
-	userClient := proto_user.NewUserClient(userConn)
-	userResponse, err := userClient.GetByID(ctx, &proto_user.GetRequest{UserId: userID})
-	if err != nil {
-		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
-	}
-	user := UserInfo{
-		Name:    userResponse.GetName(),
-		Surname: userResponse.GetSurname(),
-		Phone:   userResponse.GetPhone(),
-		Email:   userResponse.GetEmail(),
-	}
+// ScanQR resolves a reservation for a staff member scanning its QR code and
+// returns the guest and reservation details they need to confirm the booking.
+// Authorization to scan is enforced upstream (staff-only route); this method
+// therefore does not check the scanner against the reservation owner — that
+// check was inverted and blocked the intended staff-scans-guest flow.
+func (s *Service) ScanQR(ctx context.Context, reservationID string) (UserInfo, RestaurantInfo, ReservationInfo, error) {
 	reservationConn, err := s.dialog.NewConnection(s.dialog.Addresses.Reservations)
+	if err != nil {
+		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
+	}
 	defer reservationConn.Close()
-	if err != nil {
-		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
-	}
+
 	reservationClient := proto_reservation.NewReservationClient(reservationConn)
-	reservationResponse, err := reservationClient.GetReservation(ctx, &proto_reservation.IDRequest{Id: reservationID})
-	if reservationResponse.GetUserID() != userID {
-		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, domain.ErrUnauthorized
-	}
+	reservation, err := reservationClient.GetReservation(ctx, &proto_reservation.IDRequest{Id: reservationID})
 	if err != nil {
 		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
 	}
-	reservation := ReservationInfo{
-		Table:           reservationResponse.Table.GetTableNumber(),
-		ReservationTime: reservationResponse.GetReservationTime(),
+
+	userConn, err := s.dialog.NewConnection(s.dialog.Addresses.Users)
+	if err != nil {
+		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
+	}
+	defer userConn.Close()
+
+	// Look up the guest who holds the reservation, not the staff member scanning.
+	userClient := proto_user.NewUserClient(userConn)
+	guest, err := userClient.GetByID(ctx, &proto_user.GetRequest{UserId: reservation.GetUserID()})
+	if err != nil {
+		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
+	}
+
+	user := UserInfo{
+		Name:    guest.GetName(),
+		Surname: guest.GetSurname(),
+		Phone:   guest.GetPhone(),
+		Email:   guest.GetEmail(),
+	}
+	reservationInfo := ReservationInfo{
+		Table:           reservation.Table.GetTableNumber(),
+		ReservationTime: reservation.GetReservationTime(),
 	}
 	restaurant := RestaurantInfo{
-		Name:    reservationResponse.Table.Restaurant.GetName(),
-		Contact: reservationResponse.Table.Restaurant.GetContact(),
-		Address: reservationResponse.Table.Restaurant.GetAddress(),
+		Name:    reservation.Table.Restaurant.GetName(),
+		Contact: reservation.Table.Restaurant.GetContact(),
+		Address: reservation.Table.Restaurant.GetAddress(),
 	}
-	return user, restaurant, reservation, nil
+	return user, restaurant, reservationInfo, nil
 }
 
 func (s *Service) GenerateQRWithWatermark(watermark []byte, content string) ([]byte, error) {

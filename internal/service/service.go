@@ -26,7 +26,7 @@ type UserInfo struct {
 
 type QRCode interface {
 	GenerateQR(string) ([]byte, error)
-	ScanQR(context.Context, string, string) (UserInfo, RestaurantInfo, ReservationInfo, error)
+	ScanQR(context.Context, string) (UserInfo, RestaurantInfo, ReservationInfo, error)
 	GenerateQRWithWatermark([]byte, string) ([]byte, error)
 	AddWatermark([]byte, []byte) ([]byte, error)
 	ResizeWatermark(io.Reader, uint) ([]byte, error)
