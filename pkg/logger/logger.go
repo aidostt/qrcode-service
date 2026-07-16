@@ -25,3 +25,7 @@ func Infof(format string, args ...interface{}) { log.Info(fmt.Sprintf(format, ar
 func Error(msg ...interface{}) { log.Error(fmt.Sprint(msg...)) }
 
 func Errorf(format string, args ...interface{}) { log.Error(fmt.Sprintf(format, args...)) }
+
+// L returns the underlying structured logger for call sites that log key/value
+// attributes (for example the gRPC access log).
+func L() *slog.Logger { return log }

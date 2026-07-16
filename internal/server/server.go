@@ -3,11 +3,13 @@ package server
 import (
 	"context"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"qrcode-generation-service/pkg/logger"
 )
@@ -17,7 +19,9 @@ type Server struct {
 }
 
 func NewServer() *Server {
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(recoveryInterceptor))
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(loggingInterceptor, recoveryInterceptor),
+	)
 	registerHealth(grpcServer)
 	return &Server{GrpcServer: grpcServer}
 }
@@ -28,6 +32,30 @@ func registerHealth(s *grpc.Server) {
 	h := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, h)
 	h.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+}
+
+// loggingInterceptor emits one structured access-log line per call, carrying the
+// request id propagated by the gateway so a request can be correlated across
+// services.
+func loggingInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	start := time.Now()
+	resp, err := handler(ctx, req)
+	logger.L().Info("grpc request",
+		"method", info.FullMethod,
+		"request_id", requestIDFromContext(ctx),
+		"duration_ms", time.Since(start).Milliseconds(),
+		"code", status.Code(err).String(),
+	)
+	return resp, err
+}
+
+func requestIDFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if v := md.Get("x-request-id"); len(v) > 0 {
+			return v[0]
+		}
+	}
+	return ""
 }
 
 // recoveryInterceptor turns a panic in a handler into an Internal error rather
