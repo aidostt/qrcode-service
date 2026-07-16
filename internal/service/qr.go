@@ -49,7 +49,7 @@ func (s *Service) ScanQR(ctx context.Context, reservationID string) (UserInfo, R
 	if err != nil {
 		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
 	}
-	defer reservationConn.Close()
+	defer func() { _ = reservationConn.Close() }()
 
 	reservationClient := proto_reservation.NewReservationClient(reservationConn)
 	reservation, err := reservationClient.GetReservation(ctx, &proto_reservation.IDRequest{Id: reservationID})
@@ -61,7 +61,7 @@ func (s *Service) ScanQR(ctx context.Context, reservationID string) (UserInfo, R
 	if err != nil {
 		return UserInfo{}, RestaurantInfo{}, ReservationInfo{}, err
 	}
-	defer userConn.Close()
+	defer func() { _ = userConn.Close() }()
 
 	// Look up the guest who holds the reservation, not the staff member scanning.
 	userClient := proto_user.NewUserClient(userConn)
@@ -138,7 +138,9 @@ func (s *Service) AddWatermark(qrCode []byte, watermarkData []byte) ([]byte, err
 	)
 
 	watermarkedQRCode := bytes.NewBuffer(nil)
-	png.Encode(watermarkedQRCode, m)
+	if err := png.Encode(watermarkedQRCode, m); err != nil {
+		return nil, err
+	}
 
 	return watermarkedQRCode.Bytes(), nil
 }
@@ -151,7 +153,9 @@ func (s *Service) ResizeWatermark(watermark io.Reader, width uint) ([]byte, erro
 
 	m := resize.Resize(width, 0, decodedImage, resize.Lanczos3)
 	resized := bytes.NewBuffer(nil)
-	png.Encode(resized, m)
+	if err := png.Encode(resized, m); err != nil {
+		return nil, err
+	}
 
 	return resized.Bytes(), nil
 }

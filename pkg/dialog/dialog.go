@@ -34,10 +34,9 @@ func (d *Dialog) NewConnection(address string) (*grpc.ClientConn, error) {
 	//}
 	//creds := credentials.NewTLS(tlsConfig)
 	//conn, err := grpc.Dial(address, grpc.WithTransportCredentials(creds))
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logger.Errorf("Failed to connect: %v", err)
-		conn.Close()
 		return nil, err
 	}
 	return conn, nil

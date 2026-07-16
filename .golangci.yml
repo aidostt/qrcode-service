@@ -1,0 +1,10 @@
+version: "2"
+linters:
+  default: standard
+  exclusions:
+    rules:
+      # Purely stylistic staticcheck quick-fixes: explicit embedded-field
+      # selectors and minor decl/return style are deliberate here.
+      - linters:
+          - staticcheck
+        text: "(QF1008|S1021|S1023)"
