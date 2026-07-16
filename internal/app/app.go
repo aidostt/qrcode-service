@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	proto "github.com/aidostt/protos/gen/go/reservista/qr"
@@ -12,6 +13,7 @@ import (
 	"qrcode-generation-service/internal/delivery"
 	"qrcode-generation-service/internal/server"
 	"qrcode-generation-service/internal/service"
+	"qrcode-generation-service/internal/tracing"
 	"qrcode-generation-service/pkg/dialog"
 	"qrcode-generation-service/pkg/logger"
 	"syscall"
@@ -23,6 +25,13 @@ func Run(configPath, envPath string) {
 		logger.Error(err)
 
 		return
+	}
+
+	shutdownTracing, err := tracing.Init(context.Background(), "qrcode-service")
+	if err != nil {
+		logger.Errorf("tracing init: %s", err.Error())
+	} else {
+		defer func() { _ = shutdownTracing(context.Background()) }()
 	}
 	// Dependencies
 	dial := dialog.NewDialog(cfg.Authority, fmt.Sprintf("%v:%v", cfg.Users.Host, cfg.Users.Port), fmt.Sprintf("%v:%v", cfg.Reservations.Host, cfg.Reservations.Port))
