@@ -46,6 +46,13 @@ func Run(configPath, envPath string) {
 		}
 	}()
 
+	metricsSrv := &http.Server{Addr: ":" + metricsPort(), Handler: server.MetricsHandler()}
+	go func() {
+		if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorf("metrics server error: %s\n", err.Error())
+		}
+	}()
+
 	logger.Info("Server started at: " + cfg.GRPC.Host + ":" + cfg.GRPC.Port)
 
 	// Graceful Shutdown
@@ -54,4 +61,14 @@ func Run(configPath, envPath string) {
 
 	<-quit
 	srv.Stop()
+	_ = metricsSrv.Close()
+}
+
+// metricsPort is the port for the Prometheus metrics endpoint; it defaults to
+// 9464 and can be overridden with METRICS_PORT.
+func metricsPort() string {
+	if p := os.Getenv("METRICS_PORT"); p != "" {
+		return p
+	}
+	return "9464"
 }

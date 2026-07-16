@@ -40,12 +40,15 @@ func registerHealth(s *grpc.Server) {
 func loggingInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	start := time.Now()
 	resp, err := handler(ctx, req)
+	dur := time.Since(start)
+	code := status.Code(err)
 	logger.L().Info("grpc request",
 		"method", info.FullMethod,
 		"request_id", requestIDFromContext(ctx),
-		"duration_ms", time.Since(start).Milliseconds(),
-		"code", status.Code(err).String(),
+		"duration_ms", dur.Milliseconds(),
+		"code", code.String(),
 	)
+	recordMetrics(info.FullMethod, code.String(), dur)
 	return resp, err
 }
 
