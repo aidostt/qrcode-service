@@ -78,7 +78,7 @@ func (s *Service) ScanQR(ctx context.Context, reservationID string) (UserInfo, R
 	}
 	reservationInfo := ReservationInfo{
 		Table:           reservation.Table.GetTableNumber(),
-		ReservationTime: reservation.GetReservationTime(),
+		ReservationTime: reservation.GetStartAt().AsTime().Format("15:04, Jan 02 2006"),
 	}
 	restaurant := RestaurantInfo{
 		Name:    reservation.Table.Restaurant.GetName(),
