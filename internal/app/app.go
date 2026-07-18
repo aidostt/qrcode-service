@@ -13,7 +13,7 @@ import (
 	"qrcode-generation-service/internal/delivery"
 	"qrcode-generation-service/internal/server"
 	"qrcode-generation-service/internal/service"
-	"qrcode-generation-service/internal/tracing"
+	"qrcode-generation-service/pkg/tracing"
 	"qrcode-generation-service/pkg/dialog"
 	"qrcode-generation-service/pkg/logger"
 	"syscall"
